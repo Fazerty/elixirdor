@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recherche dans les FAQ JSON</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        input {
+            width: 300px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px;
+            margin: 5px;
+        }
+
+        #results {
+            margin-top: 20px;
+        }
+
+        .result {
+            padding: 10px;
+            background-color: #f1f1f1;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .timestamp {
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .highlight {
+            font-weight: bold;
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Recherche dans les FAQ JSON</h1>
+    <input type="text" id="searchTerm" placeholder="Entrez un mot-clé..." />
+    <button onclick="searchJson()">Rechercher</button>
+
+    <div id="results"></div>
+
+    <script>
+        // Liste des fichiers JSON avec leurs ID de vidéo YouTube
+        const jsonFiles = [
+            'faq-1-FXCWKU4zbRI.json',
+            'faq-2-z8In8SAdeyE.json',
+            'faq-3-53muSANCBjg.json',
+            'faq-4-n9cu_uJT7vw.json',
+            'faq-5-F43PjazMsDY.json',
+            'faq-6-vFizbpSKeJs.json',
+            'faq-7-rZCWr3wKdcI.json',
+            'faq-8-GPVr1JT_J6A.json',
+            'faq-9-9PSui6ZoY0I.json',
+            'faq-10-fjSJdYB6iDc.json',
+            'faq-11-0GiclJTGeqU.json',
+            'faq-12-Uvj2kB7s15Y.json',
+            'faq-13-CcaUdl8dmBI.json',
+
+        ];
+
+        let jsonDataCache = {};  // Variable pour stocker les données JSON chargées
+
+        // Charger les JSON au démarrage de la page
+        async function loadJsonFiles() {
+            for (const file of jsonFiles) {
+                const response = await fetch(`faqs/${file}`);
+                const jsonData = await response.json();
+                jsonDataCache[file] = jsonData; // Stocker les données JSON dans le cache
+            }
+        }
+
+        // Ouvre une pop-up pour afficher la vidéo YouTube à un timestamp donné
+        function openYouTubeAtTimestamp(videoId, seconds) {
+            const url = `https://www.youtube.com/watch?v=${videoId}&t=${seconds}s`;
+            window.open(url, 'YouTube', 'width=800,height=600');
+        }
+
+        // Fonction pour convertir un timestamp (mm:ss) en secondes
+        function timestampToSeconds(timestamp) {
+            const parts = timestamp.split(':');
+            const minutes = parseInt(parts[0], 10);
+            const seconds = parseInt(parts[1], 10);
+            return minutes * 60 + seconds;
+        }
+
+        // Fonction pour ajouter plus de segments autour du texte trouvé
+        function showMore(id, segments, direction, searchTerm) {
+            const div = document.getElementById(id);
+            let segmentIndex = parseInt(div.getAttribute(`data-${direction}-index`), 10);
+
+            if (direction === 'before') {
+                segmentIndex--;
+                if (segmentIndex >= 0) {
+                    const segmentText = segments[segmentIndex].transcriptSegmentRenderer.snippet.runs[0].text;
+                    const highlightedSegment = segmentText.replace(new RegExp("(" + searchTerm + ")", "gi"), "<span class='highlight'>$1</span>");
+                    div.innerHTML = highlightedSegment + " " + div.innerHTML;
+                    div.setAttribute(`data-${direction}-index`, segmentIndex);
+                }
+            } else if (direction === 'after') {
+                segmentIndex++;
+                if (segmentIndex < segments.length) {
+                    const segmentText = segments[segmentIndex].transcriptSegmentRenderer.snippet.runs[0].text;
+                    const highlightedSegment = segmentText.replace(new RegExp("(" + searchTerm + ")", "gi"), "<span class='highlight'>$1</span>");
+                    div.innerHTML += " " + highlightedSegment;
+                    div.setAttribute(`data-${direction}-index`, segmentIndex);
+                }
+            }
+        }
+
+        // Fonction de recherche dans les JSON déjà chargés
+        function searchJson() {
+            const searchTerm = document.getElementById('searchTerm').value.toLowerCase();
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = ''; // Clear previous results
+
+            if (!searchTerm) {
+                alert("Veuillez entrer un mot-clé !");
+                return;
+            }
+
+            jsonFiles.forEach((file) => {
+                const jsonData = jsonDataCache[file];
+                const videoId = file.split('-')[2].replace('.json', ''); // Extract video ID from file name
+                const faqId = file.split('-')[1]; // Extract faq ID from file name
+                jsonData.actions.forEach(action => {
+                    const transcript = action.updateEngagementPanelAction.content.transcriptRenderer.content.transcriptSearchPanelRenderer.body.transcriptSegmentListRenderer.initialSegments;
+
+                    transcript.forEach((segment, index) => {
+                        const text = segment.transcriptSegmentRenderer.snippet.runs[0].text.toLowerCase();
+                        //const text = segment.text.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            const timestamp = segment.transcriptSegmentRenderer.startMs;
+                            const timestampEnd = segment.transcriptSegmentRenderer.endMs;
+                            const timestampInSeconds = Math.floor((timestamp) / 1000);
+
+                            // Get previous 2 and next 2 segments by default
+                            const previousSegments = transcript.slice(Math.max(0, index - 2), index);
+                            console.log
+                            const nextSegments = transcript.slice(index + 1, Math.min(transcript.length, index + 3));
+
+                            let surroundingText = '';
+                            previousSegments.forEach(seg => {
+
+                                const text = seg.transcriptSegmentRenderer.snippet.runs[0].text.toLowerCase();
+                                if (seg)
+                                    surroundingText += text + ' ';
+                            });
+                            // Highlight the search term
+                            surroundingText += `${text.replace(new RegExp("(" + searchTerm + ")", "gi"), "<span class='highlight'>$1</span>")} `;
+                            nextSegments.forEach(seg => {
+
+                                const text = seg.transcriptSegmentRenderer.snippet.runs[0].text.toLowerCase();
+                                if (text)
+                                    surroundingText += text + ' ';
+                            });
+
+                            // Create a div for the result
+                            const resultDiv = document.createElement('div');
+                            resultDiv.classList.add('result');
+                            resultDiv.innerHTML = `<span class="timestamp" onclick="openYouTubeAtTimestamp('${videoId}', ${timestampInSeconds})">FAQ #${faqId} Timestamp: ${new Date(timestampInSeconds * 1000).toISOString().substr(11, 8)}</span><br/><div id="segment-${index}" data-before-index="${index - 2}" data-after-index="${index + 2}">${surroundingText}</div>`;
+
+                            // Add "more before" and "more after" buttons
+                            const beforeButton = document.createElement('button');
+                            beforeButton.innerText = "Plus avant";
+                            beforeButton.onclick = function () {
+                                console.log(`${index}`)
+                                showMore(`segment-${index}`, transcript, 'before', searchTerm);
+                            };
+
+                            const afterButton = document.createElement('button');
+                            afterButton.innerText = "Plus après";
+                            afterButton.onclick = function () {
+                                console.log(`${index}`)
+                                showMore(`segment-${index}`, transcript, 'after', searchTerm);
+                            };
+
+                            resultDiv.appendChild(beforeButton);
+                            resultDiv.appendChild(afterButton);
+                            resultsDiv.appendChild(resultDiv);
+                        }
+                    });
+                })
+
+            });
+        }
+        // Charger les JSON au démarrage de la page
+        window.onload = loadJsonFiles;
+    </script>
+</body>
+
+</html>

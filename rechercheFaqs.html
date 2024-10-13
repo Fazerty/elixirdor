@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recherche dans les FAQ</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header img {
+            margin-right: 30px;
+            width: 80px;
+            border-radius: 5px;
+            height: auto;
+        }
+
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2.2em;
+            background: linear-gradient(45deg, #f0c27b, #4b1248);
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            letter-spacing: 1px;
+            padding-bottom: 10px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 75%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #c9ae19;
+            border: none;
+            color: white;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #infoButton {
+            width: 40px;
+            height: 40px;
+            background-color: #dbbc34;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #infoButton:hover {
+            background-color: #2980b9;
+        }
+
+        button:hover {
+            background-color: #995c0c;
+        }
+
+        .faq-dropdown,
+        .checkbox-container {
+            margin-bottom: 20px;
+        }
+
+        .error-message {
+            color: red;
+            display: none;
+            font-size: 14px;
+        }
+
+        .results-container {
+            margin-top: 20px;
+        }
+
+        .faq-result {
+            background-color: #f9f9f9;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 5px solid #dbbc34;
+        }
+
+        .faq-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .faq-header h3 {
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        .faq-header button {
+            margin-left: 10px;
+        }
+
+        .faq-question {
+            margin: 5px 0;
+        }
+
+        .faq-answer {
+            margin: 5px 0;
+        }
+
+        .highlight {
+            background-color: yellow;
+            font-weight: bold;
+        }
+
+        #previousQuestion {
+            color: blue;
+            text-decoration: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .close-btn {
+            background-color: #dbbc34;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            margin: 0 5px;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            color: black;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background-color: #c9ae19;
+            color: white;
+            border-color: #c9ae19;
+        }
+
+        .pagination button:hover {
+            background-color: #ddd;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 600px;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            top: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent transparent black transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        @media (max-width: 600px) {
+            .tooltip .tooltiptext {
+                left: 0;
+                transform: none;
+                width: 200px;
+            }
+        }
+
+        .options-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #d4af37;
+            border-radius: 50%;
+            background-color: white;
+            cursor: pointer;
+            outline: none;
+            position: relative;
+            vertical-align: middle;
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: #d4af37;
+            border: 2px solid #d4af37;
+        }
+
+        input[type="checkbox"]:checked::before {
+            content: "✓";
+            font-size: 16px;
+            color: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+        }
+
+        input[type="checkbox"]:hover {
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        label {
+            font-size: 16px;
+            color: #333;
+            vertical-align: middle;
+        }
+
+        .dropdown-group {
+            display: flex;
+            align-items: center;
+        }
+
+        select {
+            padding: 8px;
+            border-radius: 5px;
+            border: 2px solid #ddd;
+            font-size: 16px;
+            margin-left: 10px;
+        }
+
+        label {
+            font-size: 16px;
+            color: #333;
+        }
+
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #loading p {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 16px;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="icon.webp" alt="Icône de recherche">
+            <h1>Elixir d'or: Recherche dans les FAQs</h1>
+        </div>
+
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Rechercher..." onkeydown="triggerSearchOnEnter(event)">
+            <button onclick="validateAndSearch()">Rechercher</button>
+            <div class="tooltip">
+                <button id="infoButton">?</button>
+                <div class="tooltiptext">
+                    <strong>Règles de recherche :</strong>
+                    <ul style="text-align: left;">
+                        <li>Saisir un mot pour rechercher dans les questions ou les réponses.</li>
+                        <li>Si un mot est précédé de <code>-</code>, les résultats contenant ce mot seront exclus.</li>
+                        <li>Les groupes de mots entre apostrophes <code>' '</code> seront recherchés ensemble.</li>
+                        <li>Si un groupe de mots est précédé de <code>-</code>, les résultats contenant ce groupe seront
+                            exclus.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="options-container">
+            <div class="checkbox-group">
+                <div>
+                    <input type="checkbox" id="searchInQuestions" checked onchange="performSearch()">
+                    <label for="searchInQuestions">Rechercher dans les questions</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="searchInAnswers" checked onchange="performSearch()">
+                    <label for="searchInAnswers">Rechercher dans les réponses</label>
+                </div>
+            </div>
+            <div class="dropdown-group">
+                <label for="faqSelect">Sélectionnez les FAQ:</label>
+                <select id="faqSelect" onchange="performSearch()">
+                    <option value="all">Toutes les FAQ</option>
+                </select>
+            </div>
+        </div>
+
+        <p class="error-message" id="error-message">Vous devez cocher au moins une option pour effectuer une recherche.
+        </p>
+        <p class="error-message" id="error-search">Le champ de recherche ne peut pas être vide ou ne contenir que des
+            exclusions.</p>
+
+        <div class="results-container" id="resultsContainer"></div>
+        <div class="pagination" id="paginationContainer"></div>
+
+        <div id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Chargement des FAQs...</p>
+        </div>
+    </div>
+
+    <script>
+        let isExperimental = false;
+        if (!window.location.href.includes("fazerty.github.io")) {
+            isExperimental = true;
+        }
+
+        let faqData = {};
+        const faqSelect = document.getElementById('faqSelect');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const paginationContainer = document.getElementById('paginationContainer');
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let searchResults = [];
+
+        function triggerSearchOnEnter(event) {
+            if (event.key === "Enter" || event.keyCode === 13) {
+                validateAndSearch();
+            }
+        }
+
+        let videoIds = {
+            "1": "FXCWKU4zbRI",
+            "2": "z8In8SAdeyE",
+            "3": "53muSANCBjg",
+            "4": "n9cu_uJT7vw",
+            "5": "F43PjazMsDY",
+            "6": "vFizbpSKeJs",
+            "7": "rZCWr3wKdcI",
+            "8": "GPVr1JT_J6A",
+            "9": "9PSui6ZoY0I",
+            "10": "fjSJdYB6iDc",
+            "11": "0GiclJTGeqU",
+            "12": "Uvj2kB7s15Y",
+            "13": "CcaUdl8dmBI"
+        }
+
+        async function loadAllFAQData() {
+
+            const loadingDiv = document.getElementById('loading');
+            loadingDiv.style.display = 'block';
+            let faqIndex = 1;
+            let fileFound = true;
+
+            while (fileFound) {
+                const fileName = `FAQ ${faqIndex}.csv`;
+                try {
+
+                    const response = await fetch(`faqs/${fileName}`);
+                    if (!response.ok) {
+                        fileFound = false;
+                        break;
+                    }
+
+                    const data = await response.text();
+
+                    Papa.parse(data, {
+                        header: true,
+                        skipEmptyLines: true,
+                        transformHeader: function (header, index) {
+                            // Renomme les en-têtes à l'aide de leur position
+                            switch (index) {
+                                case 0: return 'line';
+                                case 1: return 'questionNumber';
+                                case 2: return 'question';
+                                case 3: return 'answer';
+                                case 4: return 'link';
+                                default: return header;
+                            }
+                        },
+                        complete: function (results) {
+                            faqData[`FAQ ${faqIndex}`] = results.data;
+                        },
+                        error: function (error) {
+                            console.error(`Erreur lors du parsing du fichier ${fileName}:`, error);
+                        }
+                    });
+
+                    const option = document.createElement('option');
+                    option.value = `FAQ ${faqIndex}`;
+                    option.textContent = `FAQ ${faqIndex}`;
+                    faqSelect.appendChild(option);
+
+                    faqIndex++;
+                } catch (error) {
+                    console.error(`Erreur lors du chargement du fichier ${fileName}`, error);
+                    fileFound = false;
+                }
+            }
+            loadingDiv.style.display = 'none';
+        }
+
+        function validateAndSearch() {
+            const searchInQuestions = document.getElementById('searchInQuestions').checked;
+            const searchInAnswers = document.getElementById('searchInAnswers').checked;
+            const searchInput = document.getElementById('searchInput').value.trim();
+
+            if (!searchInput) {
+                document.getElementById('error-search').style.display = 'block';
+                return;
+            }
+
+            const searchTerms = parseSearchTerms(searchInput);
+            const hasNonExclusion = searchTerms.some(term => !term.exclude);
+
+            if (!hasNonExclusion) {
+                document.getElementById('error-search').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('error-search').style.display = 'none';
+
+            if (!searchInQuestions && !searchInAnswers) {
+                document.getElementById('error-message').style.display = 'block';
+            } else {
+                document.getElementById('error-message').style.display = 'none';
+                performSearch();
+            }
+        }
+
+        function performSearch() {
+            const searchInput = document.getElementById('searchInput').value;
+            const selectedFAQ = document.getElementById('faqSelect').value;
+            const searchInQuestions = document.getElementById('searchInQuestions').checked;
+            const searchInAnswers = document.getElementById('searchInAnswers').checked;
+            const searchTerms = parseSearchTerms(searchInput);
+
+            searchResults = [];
+
+            if (selectedFAQ === "all") {
+
+                for (const faqId in faqData) {
+                    searchResults = searchResults.concat(faqData[faqId].filter(faq => {
+                        return (searchInQuestions && containsTerms(faq.question, searchTerms)) ||
+                            (searchInAnswers && containsTerms(faq.answer, searchTerms));
+                    }));
+                }
+            } else {
+                searchResults = faqData[selectedFAQ].filter(faq => {
+                    return (searchInQuestions && containsTerms(faq.question, searchTerms)) ||
+                        (searchInAnswers && containsTerms(faq.answer, searchTerms));
+                });
+            }
+
+            currentPage = 1;
+            displayResults(searchResults, searchTerms);
+            setupPagination(searchResults.length);
+        }
+
+        function parseSearchTerms(input) {
+            const terms = [];
+            const regex = /(-?'[^']+'|\S+)/g;
+            let match;
+            while ((match = regex.exec(input)) !== null) {
+                let term = match[0];
+                let exclude = false;
+                if (term.startsWith("-")) {
+                    exclude = true;
+                    term = term.slice(1);
+                }
+                term = term.replace(/'/g, '');
+                terms.push({ term, exclude });
+            }
+            return terms;
+        }
+
+        function containsTerms(text, searchTerms) {
+            return searchTerms.every(({ term, exclude }) => {
+                const found = text?.toLowerCase().includes(term.toLowerCase());
+                return exclude ? !found : found;
+            });
+        }
+
+        function displayResults(results, searchTerms) {
+            resultsContainer.innerHTML = '';
+
+            if (results.length === 0) {
+                resultsContainer.innerHTML = '<p>Aucun résultat trouvé.</p>';
+                return;
+            }
+
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginatedResults = results.slice(start, end);
+
+            if (paginatedResults.length === 0) {
+                resultsContainer.innerHTML = '<p>Aucun résultat à afficher pour cette page.</p>';
+                return;
+            }
+
+            paginatedResults.forEach((result, index) => {
+                const question = highlightTerms(result.question, searchTerms);
+                const answer = highlightTerms(result.answer, searchTerms);
+                const previousQuestionNumber = parseInt(result.questionNumber.split('-')[1]) - 1
+                const previousLink = previousQuestionNumber > 0 ? `<a id="previousQuestion" href="#" onclick="displayPreviousQuestion(${previousQuestionNumber}, ${result.questionNumber.split('-')[0].replace('FAQ', '')})">&#8592;</a>` : ''
+                const link = result.link || `https://www.youtube.com/watch?v=${getLinFromFaqId(result.questionNumber)}`;
+
+                const resultHtml = `
+            <div class="faq-result">
+                <div class="faq-header">
+                    <a onclick="openYouTubeAtTimestamp('${link}')" href="#"><h3>${result.questionNumber}</h3></a>
+               </h3>
+                    ${previousLink}
+                </div>
+                <div class="faq-question">
+                    <p><strong>Question :</strong> ${question}</p>
+                </div>
+                <div class="faq-answer">
+                    <p><strong>Réponse :</strong> ${answer}</p>
+                </div>
+            </div>
+        `;
+                resultsContainer.innerHTML += resultHtml;
+            });
+        }
+
+        function displayPreviousQuestion(questionNumber, faqNumber) {
+            const selectedFAQ = `FAQ ${faqNumber}`;
+            const questionKey = `FAQ${faqNumber}-${questionNumber}`;
+            const previousQuestion = faqData[selectedFAQ].find(faq => faq.questionNumber == questionKey);
+
+            if (previousQuestion) {
+                showPopup(questionKey, previousQuestion.question, previousQuestion.answer);
+            } else {
+                showPopup(questionKey, 'Erreur', 'Aucune question précédente trouvée.');
+            }
+        }
+
+        function openYouTubeAtTimestamp(url) {
+            const width = 800;
+            const height = 600;
+            const left = (window.screen.width / 2) - (width / 2);
+            const top = (window.screen.height / 2) - (height / 2);
+            window.open(url, 'YouTube', `width=${width},height=${height},top=${top},left=${left}`);
+        }
+
+        function getLinFromFaqId(faqId) {
+            const videoNumber = faqId?.split('-')[0].replace('FAQ', '')
+            return videoIds[videoNumber];
+        }
+
+        function highlightTerms(text, searchTerms) {
+            if (!text) {
+                return '';
+            }
+
+            searchTerms.forEach(({ term }) => {
+                const regex = new RegExp(`(${term})`, 'gi');
+                text = text.replace(regex, '<span class="highlight">$1</span>');
+            });
+            return text;
+        }
+
+        function setupPagination(totalItems) {
+            paginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            if (totalPages <= 1) return;
+
+            let maxButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 2); // reserve space for last page
+
+            if (endPage - startPage + 1 < maxButtons - 1) {
+                startPage = Math.max(1, endPage - (maxButtons - 2));
+            }
+
+            // Add "Previous" button
+            if (currentPage > 1) {
+                const prevButton = document.createElement('button');
+                prevButton.textContent = 'Précédent';
+                prevButton.addEventListener('click', () => {
+                    currentPage--;
+                    displayResults(searchResults, parseSearchTerms(document.getElementById('searchInput').value));
+                    setupPagination(totalItems);
+                });
+                paginationContainer.appendChild(prevButton);
+            }
+
+            // If there are pages before startPage, show "1" and "..."
+            if (startPage > 1) {
+                const firstButton = document.createElement('button');
+                firstButton.textContent = '1';
+                firstButton.addEventListener('click', () => {
+                    currentPage = 1;
+                    displayResults(searchResults, parseSearchTerms(document.getElementById('searchInput').value));
+                    setupPagination(totalItems);
+                });
+                paginationContainer.appendChild(firstButton);
+
+                const dots = document.createElement('span');
+                dots.textContent = '...';
+                paginationContainer.appendChild(dots);
+            }
+
+            // Display the current range of page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+
+                if (i === currentPage) {
+                    button.classList.add('active');
+                }
+
+                button.addEventListener('click', () => {
+                    currentPage = i;
+                    displayResults(searchResults, parseSearchTerms(document.getElementById('searchInput').value));
+                    setupPagination(totalItems);
+                });
+
+                paginationContainer.appendChild(button);
+            }
+
+            // If there are pages after the endPage, show "..." and the last page
+            if (endPage < totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.textContent = '...';
+                paginationContainer.appendChild(dots);
+            }
+
+            if (endPage < totalPages) {
+                const lastButton = document.createElement('button');
+                lastButton.textContent = totalPages;
+                lastButton.addEventListener('click', () => {
+                    currentPage = totalPages;
+                    displayResults(searchResults, parseSearchTerms(document.getElementById('searchInput').value));
+                    setupPagination(totalItems);
+                });
+                paginationContainer.appendChild(lastButton);
+            }
+
+            // Add "Next" button
+            if (currentPage < totalPages) {
+                const nextButton = document.createElement('button');
+                nextButton.textContent = 'Suivant';
+                nextButton.addEventListener('click', () => {
+                    currentPage++;
+                    displayResults(searchResults, parseSearchTerms(document.getElementById('searchInput').value));
+                    setupPagination(totalItems);
+                });
+                paginationContainer.appendChild(nextButton);
+            }
+        }
+
+        function updatePaginationButtons(totalPages) {
+            const buttons = paginationContainer.querySelectorAll('button');
+            buttons.forEach((button, index) => {
+                if (index + 1 === currentPage) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        function showPopup(questionKey, question, answer) {
+            const modal = document.createElement('div');
+            modal.classList.add('modal');
+
+            const modalContent = `
+        <div class="modal-content">
+            <h3>Question précédente: ${questionKey}</h3>
+            <p>${question}</p>
+            <p>${answer}</p>
+            <button class="close-btn" onclick="closePopup()">Fermer</button>
+        </div>
+    `;
+            modal.innerHTML = modalContent;
+            document.body.appendChild(modal);
+            modal.style.display = 'flex';
+        }
+
+        function closePopup() {
+            const modal = document.querySelector('.modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', async function () {
+            await loadAllFAQData()
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchParam = urlParams.get('search');
+            if (searchParam) {
+                document.getElementById('searchInput').value = searchParam;
+                validateAndSearch();
+            }
+        });
+
+        // Update URL when the input changes
+        document.getElementById('searchInput').addEventListener('input', function () {
+            const searchInput = this.value.trim();
+            const url = new URL(window.location);
+            if (searchInput) {
+                url.searchParams.set('search', searchInput);
+            } else {
+                url.searchParams.delete('search');
+            }
+            window.history.pushState({}, '', url);
+        });
+    </script>
+</body>
+
+</html>
