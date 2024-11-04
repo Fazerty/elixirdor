@@ -386,6 +386,8 @@
                         <li>Les groupes de mots entre apostrophes <code>' '</code> seront recherchés ensemble.</li>
                         <li>Si un groupe de mots est précédé de <code>-</code>, les résultats contenant ce groupe seront
                             exclus.</li>
+                        <li>Les mots entre guillemets <code>" "</code> seront recherchés comme mots exacts, uniquement
+                            s'ils sont isolés dans le texte.</li>
                     </ul>
                 </div>
             </div>
@@ -574,24 +576,45 @@
 
         function parseSearchTerms(input) {
             const terms = [];
-            const regex = /(-?'[^']+'|\S+)/g;
+            const regex = /(-?"[^"]+"|-?'[^']+'|\S+)/g;  // Detects terms in quotes, apostrophes, or without quotes
             let match;
             while ((match = regex.exec(input)) !== null) {
                 let term = match[0];
                 let exclude = false;
+
                 if (term.startsWith("-")) {
                     exclude = true;
                     term = term.slice(1);
                 }
-                term = term.replace(/'/g, '');
-                terms.push({ term, exclude });
+
+                // Determine if the term is a grouped phrase or an exact match
+                let exactMatch = term.startsWith('"') && term.endsWith('"');
+                let groupedPhrase = term.startsWith("'") && term.endsWith("'");
+
+                // Remove surrounding quotes or apostrophes
+                term = term.replace(/^["']|["']$/g, '');
+
+                terms.push({ term, exclude, exactMatch, groupedPhrase });
             }
             return terms;
         }
 
         function containsTerms(text, searchTerms) {
-            return searchTerms.every(({ term, exclude }) => {
-                const found = text?.toLowerCase().includes(term.toLowerCase());
+            return searchTerms.every(({ term, exclude, exactMatch, groupedPhrase }) => {
+                let regex;
+
+                if (exactMatch) {
+                    // Exact match: only matches if isolated (surrounded by non-word characters or spaces)
+                    regex = new RegExp(`(^|[^\\w])${term}([^\\w]|$)`, 'gi');
+                } else if (groupedPhrase) {
+                    // Grouped phrase: matches the exact phrase anywhere
+                    regex = new RegExp(term, 'gi');
+                } else {
+                    // Standard term match
+                    regex = new RegExp(term, 'gi');
+                }
+
+                const found = regex.test(text);
                 return exclude ? !found : found;
             });
         }
